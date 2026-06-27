@@ -10,12 +10,14 @@ const router = Router();
 router.use(authenticate, authorize('admin'));
 
 router.get('/stats', getDashboardStats);
-router.get('/audit-log', getAuditLog);
+// Audit jurnali — faqat Super Admin
+router.get('/audit-log', authorize('super_admin'), getAuditLog);
 
 router.get('/users', getUsers);
 router.post('/users', createUser);
 router.put('/users/:id', updateUser);
-router.delete('/users/:id', deleteUser);
+// Foydalanuvchini o'chirish — faqat Super Admin
+router.delete('/users/:id', authorize('super_admin'), deleteUser);
 router.post('/users/:id/reset-password', resetUserPassword);
 
 export default router;

@@ -10,12 +10,13 @@ import {
 import { adminAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LangContext';
+import { isSuperAdmin } from '../../constants/roles';
 
 const { Title } = Typography;
 const { Option } = Select;
 
 const roleColors = {
-  admin: 'red', researcher: 'purple', coach: 'blue', operator: 'green', athlete: 'default',
+  super_admin: 'volcano', admin: 'red', researcher: 'purple', coach: 'blue', operator: 'green', athlete: 'default',
 };
 
 export default function UserManagement() {
@@ -201,7 +202,11 @@ export default function UserManagement() {
           </Form.Item>
           <Form.Item name="role" label={t('admin.role')} rules={[{ required: true }]}>
             <Select>
-              {['admin', 'researcher', 'coach', 'operator', 'athlete'].map(r => (
+              {/* Admin/Super Admin rolini faqat Super Admin tayinlay oladi */}
+              {(isSuperAdmin(currentUser?.role)
+                ? ['super_admin', 'admin', 'researcher', 'coach', 'operator', 'athlete']
+                : ['researcher', 'coach', 'operator', 'athlete']
+              ).map(r => (
                 <Option key={r} value={r}>{t(`roles.${r}`)}</Option>
               ))}
             </Select>

@@ -9,12 +9,30 @@ async function runMigrations() {
   const client = await pool.connect();
   try {
     console.log('Running migrations...');
-    const sql = fs.readFileSync(
-      path.join(__dirname, '../../migrations/001_init.sql'),
-      'utf-8'
-    );
-    await client.query(sql);
-    console.log('Migration 001_init.sql completed');
+
+    const migrationFiles = ['001_init.sql', '002_multilang.sql', '003_machines.sql', '004_teams.sql'];
+    for (const file of migrationFiles) {
+      const filePath = path.join(__dirname, '../../migrations', file);
+      if (!fs.existsSync(filePath)) continue;
+      const sql = fs.readFileSync(filePath, 'utf-8');
+      try {
+        await client.query(sql);
+        console.log(`Migration ${file} completed`);
+      } catch (err: any) {
+        // Qayta ishga tushirishda "already exists" xatolarini e'tiborsiz qoldiramiz (idempotent)
+        const code = err?.code;
+        if (code === '42710' || code === '42P07' || code === '42P06' || code === '42701' ||
+            /already exists/i.test(err?.message || '')) {
+          console.log(`Migration ${file} allaqachon qo'llangan, o'tkazib yuborildi`);
+        } else {
+          throw err;
+        }
+      }
+    }
+
+    // 'super_admin' enum qiymatini qo'shish — user_role tipi 001 da yaratilgach.
+    // Alohida (bitta) so'rov: ADD VALUE tranzaksiya ichida ishlatib bo'lmaydi.
+    await client.query("ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'super_admin'");
 
     // Create default admin user
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@sportuds.uz';
@@ -23,10 +41,16 @@ async function runMigrations() {
     if (existing.rowCount === 0) {
       const hash = await bcrypt.hash(adminPassword, 12);
       await client.query(
-        `INSERT INTO users (email, password_hash, full_name, role) VALUES ($1, $2, $3, 'admin')`,
+        `INSERT INTO users (email, password_hash, full_name, role) VALUES ($1, $2, $3, 'super_admin')`,
         [adminEmail, hash, 'Tizim administratori']
       );
-      console.log(`Admin user created: ${adminEmail}`);
+      console.log(`Super Admin user created: ${adminEmail}`);
+    } else {
+      // Mavjud asosiy admin'ni Super Admin darajasiga ko'tarish
+      await client.query(
+        `UPDATE users SET role = 'super_admin' WHERE email = $1 AND role = 'admin'`,
+        [adminEmail]
+      );
     }
 
     console.log('All migrations completed successfully');

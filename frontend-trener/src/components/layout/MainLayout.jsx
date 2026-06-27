@@ -5,10 +5,11 @@ import {
   SettingOutlined, UserOutlined, LogoutOutlined, SafetyOutlined,
   TrophyOutlined, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   BellOutlined, GlobalOutlined, SunOutlined, MoonOutlined, QuestionCircleOutlined,
-  EnvironmentOutlined,
+  EnvironmentOutlined, HistoryOutlined, IdcardOutlined, UsergroupAddOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { isStaff, isAthlete, isAdmin, isAdminLevel, isSuperAdmin } from '../../constants/roles';
 import { useLang } from '../../context/LangContext';
 import { useTheme } from '../../context/ThemeContext';
 import InfoModal from '../InfoModal';
@@ -26,37 +27,60 @@ export default function MainLayout() {
 
   const isDark = theme === 'dark';
 
-  const menuItems = [
+  const L = (uz, ru, en) => (lang === 'ru' ? ru : lang === 'en' ? en : uz);
+
+  // Sportchi (athlete) menyusi
+  const athleteMenu = [
+    { key: '/me', icon: <IdcardOutlined />, label: L('Mening kabinetim', 'Мой кабинет', 'My cabinet') },
+    { key: '/me/history', icon: <HistoryOutlined />, label: L('Natijalarim', 'Мои результаты', 'My results') },
+  ];
+
+  // Xodim (Trener) menyusi
+  const staffMenu = [
     { key: '/', icon: <DashboardOutlined />, label: t('nav.dashboard') },
+    { key: '/teams', icon: <UsergroupAddOutlined />, label: t('nav.teams') },
     { key: '/athletes', icon: <TeamOutlined />, label: t('nav.athletes') },
     { key: '/sessions', icon: <ExperimentOutlined />, label: t('nav.sessions') },
     { key: '/analytics', icon: <BarChartOutlined />, label: t('nav.analytics') },
     { key: '/trinajorlar', icon: <EnvironmentOutlined />, label: 'Trinajorlar' },
     { key: '/reports', icon: <FileTextOutlined />, label: t('nav.reports') },
-    ...(user?.role === 'admin' ? [{
-      key: 'admin-group',
-      icon: <SafetyOutlined />,
-      label: t('nav.adminPanel'),
-      children: [
-        { key: '/admin', icon: <DashboardOutlined />, label: t('nav.adminHome') },
-        { key: '/admin/users', icon: <UserOutlined />, label: t('nav.users') },
-        { key: '/admin/sports', icon: <TrophyOutlined />, label: t('nav.sports') },
-        { key: '/admin/protocols', icon: <SettingOutlined />, label: t('nav.protocols') },
-        { key: '/admin/audit', icon: <FileTextOutlined />, label: t('nav.audit') },
-      ],
-    }] : []),
+    // Admin paneli — nested emas, bitta chiziq bilan ajratilgan flat itemlar
+    ...(isAdminLevel(user?.role) ? [
+      { type: 'divider' },
+      { key: '/admin', icon: <SafetyOutlined />, label: t('nav.adminHome') },
+      { key: '/admin/users', icon: <UserOutlined />, label: t('nav.users') },
+      { key: '/admin/sports', icon: <TrophyOutlined />, label: t('nav.sports') },
+      { key: '/admin/protocols', icon: <SettingOutlined />, label: t('nav.protocols') },
+      // Audit jurnali — faqat Super Admin
+      ...(isSuperAdmin(user?.role) ? [{ key: '/admin/audit', icon: <FileTextOutlined />, label: t('nav.audit') }] : []),
+    ] : []),
   ];
+
+  const menuItems = isAthlete(user?.role) ? athleteMenu : staffMenu;
 
   // More specific routes first to avoid '/admin' matching '/admin/users'
   const selectedKey = (() => {
     const p = location.pathname;
+    if (isAthlete(user?.role)) {
+      return p.startsWith('/me/history') ? '/me/history' : '/me';
+    }
     if (p === '/') return '/';
     const keys = [
       '/admin/users', '/admin/sports', '/admin/protocols', '/admin/audit',
-      '/athletes', '/sessions', '/analytics', '/trinajorlar', '/reports', '/admin',
+      '/teams', '/athletes', '/sessions', '/analytics', '/trinajorlar', '/reports', '/admin',
     ];
     return keys.find(k => p === k || p.startsWith(k + '/')) || '/';
   })();
+
+  const roleLabel = isSuperAdmin(user?.role)
+    ? L('Super Admin', 'Супер админ', 'Super Admin')
+    : isAdmin(user?.role)
+      ? L('Admin', 'Админ', 'Admin')
+      : isAthlete(user?.role)
+        ? L('Sportchi', 'Спортсмен', 'Athlete')
+        : isStaff(user?.role)
+          ? L('Trener', 'Тренер', 'Coach')
+          : '';
 
   const langItems = {
     selectedKeys: [lang],
@@ -76,6 +100,9 @@ export default function MainLayout() {
           <div style={{ padding: '4px 0', pointerEvents: 'none' }}>
             <div style={{ fontWeight: 600, fontSize: 14 }}>{user?.full_name}</div>
             <div style={{ fontSize: 12, opacity: 0.4 }}>{user?.email}</div>
+            {roleLabel && (
+              <div style={{ fontSize: 11, marginTop: 4, color: '#6366f1', fontWeight: 600 }}>{roleLabel}</div>
+            )}
           </div>
         ),
       },
@@ -144,7 +171,6 @@ export default function MainLayout() {
             theme={isDark ? 'dark' : 'light'}
             mode="inline"
             selectedKeys={[selectedKey]}
-            defaultOpenKeys={['admin-group']}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
             style={{ border: 'none', background: 'transparent', fontSize: 14 }}

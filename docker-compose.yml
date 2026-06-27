@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sportuds-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: sportuds_pass
+      POSTGRES_DB: sportuds
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d sportuds"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build: ./backend
+    container_name: sportuds-backend
+    environment:
+      NODE_ENV: development
+      PORT: "5000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: sportuds
+      DB_USER: postgres
+      DB_PASSWORD: sportuds_pass
+      JWT_SECRET: sportuds_secret_change_me
+      JWT_EXPIRES_IN: 30d
+      ADMIN_EMAIL: admin@sportuds.uz
+      ADMIN_PASSWORD: Admin@123456
+      # Mobil QR skanerlash uchun — server IP manzili
+      APP_BASE_URL: http://170.168.6.84:5000
+    # Avval migratsiya (jadval/rol), keyin serverni ishga tushiramiz.
+    # Migratsiya xatosi (qayta ishga tushirishda) serverni to'xtatmaydi.
+    command: sh -c "npm run migrate:ts; npm run dev"
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web-trener:
+    build:
+      context: ./frontend-trener
+      args:
+        VITE_API_URL: /api
+    container_name: sportuds-web-trener
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

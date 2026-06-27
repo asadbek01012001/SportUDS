@@ -53,6 +53,12 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { email, password, full_name, role } = req.body;
 
+    // Admin yoki Super Admin rolini faqat Super Admin tayinlay oladi
+    if ((role === 'admin' || role === 'super_admin') && req.user!.role !== 'super_admin') {
+      res.status(403).json({ success: false, error: 'Admin rolini faqat Super Admin tayinlay oladi' });
+      return;
+    }
+
     const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rowCount && existing.rowCount > 0) {
       res.status(400).json({ success: false, error: 'Bu email allaqachon ro\'yxatdan o\'tgan' });
@@ -82,6 +88,12 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { id } = req.params;
     const { full_name, role, is_active } = req.body;
+
+    // Admin/Super Admin rolini faqat Super Admin bera oladi
+    if ((role === 'admin' || role === 'super_admin') && req.user!.role !== 'super_admin') {
+      res.status(403).json({ success: false, error: 'Admin rolini faqat Super Admin tayinlay oladi' });
+      return;
+    }
 
     const result = await query<User>(
       `UPDATE users SET full_name = $1, role = $2, is_active = $3

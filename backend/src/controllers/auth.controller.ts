@@ -15,14 +15,30 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const token = generateToken({ userId: user.id, email: user.email, role: user.role });
+    // Sportchi bo'lsa, athlete profil id'sini ham olamiz (shaxsiy kabinet uchun)
+    let athleteId: string | undefined;
+    if (user.role === 'athlete') {
+      const athRes = await query<{ id: string }>(
+        'SELECT id FROM athletes WHERE user_id = $1 LIMIT 1',
+        [user.id]
+      );
+      athleteId = athRes.rows[0]?.id;
+    }
+
+    const token = generateToken({ userId: user.id, email: user.email, role: user.role, athleteId });
     await logAction(user.id, 'LOGIN', req.ip);
 
     res.json({
       success: true,
       data: {
         token,
-        user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
+        user: {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          role: user.role,
+          athlete_id: athleteId ?? null,
+        },
       },
     });
   } catch {

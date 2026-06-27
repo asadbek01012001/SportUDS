@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { LangProvider } from './context/LangContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import MainLayout from './components/layout/MainLayout';
-import NazoratchiLayout from './components/layout/NazoratchiLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Athletes from './pages/Athletes';
@@ -19,8 +18,11 @@ import UserManagement from './pages/admin/UserManagement';
 import AuditLog from './pages/admin/AuditLog';
 import Protocols from './pages/admin/Protocols';
 import Sports from './pages/admin/Sports';
-import NazoratchiDashboard from './pages/nazoratchi/NazoratchiDashboard';
 import Trinajorlar from './pages/trener/Trinajorlar';
+import Teams from './pages/Teams';
+import MyCabinet from './pages/athlete/MyCabinet';
+import MyHistory from './pages/athlete/MyHistory';
+import { isStaff, isAthlete } from './constants/roles';
 
 const PrivateRoute = ({ children, roles }) => {
   const { user, loading } = useAuth();
@@ -30,40 +32,60 @@ const PrivateRoute = ({ children, roles }) => {
   return children;
 };
 
-const NazoratchiRoute = ({ children }) => {
-  const { user, module, loading } = useAuth();
+// Faqat xodimlar (Super Admin / Trener). Sportchi kelsa -> shaxsiy kabinet.
+const StaffRoute = ({ children }) => {
+  const { user, loading } = useAuth();
   if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
   if (!user) return <Navigate to="/login" replace />;
-  if (module !== 'nazoratchi') return <Navigate to="/" replace />;
+  if (!isStaff(user.role)) return <Navigate to="/me" replace />;
   return children;
+};
+
+// Faqat sportchi. Xodim kelsa -> bosh sahifa.
+const AthleteRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <Spin size="large" style={{ display: 'block', margin: '100px auto' }} />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!isAthlete(user.role)) return <Navigate to="/" replace />;
+  return children;
+};
+
+// "/" sahifasi rolga qarab: sportchi -> kabinet, xodim -> dashboard
+const RoleHome = () => {
+  const { user } = useAuth();
+  if (isAthlete(user?.role)) return <Navigate to="/me" replace />;
+  return <Dashboard />;
 };
 
 const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<Login />} />
 
-    {/* Nazoratchi module routes */}
-    <Route path="/nazoratchi" element={<NazoratchiRoute><NazoratchiLayout /></NazoratchiRoute>}>
-      <Route index element={<NazoratchiDashboard />} />
-      <Route path="monitoring" element={<NazoratchiDashboard />} />
-    </Route>
-
-    {/* Trener module routes */}
     <Route path="/" element={<PrivateRoute><MainLayout /></PrivateRoute>}>
-      <Route index element={<Dashboard />} />
-      <Route path="athletes" element={<Athletes />} />
-      <Route path="athletes/:id" element={<AthleteDetail />} />
-      <Route path="sessions" element={<Sessions />} />
-      <Route path="sessions/new" element={<NewSession />} />
-      <Route path="sessions/:id" element={<SessionDetail />} />
-      <Route path="analytics" element={<Analytics />} />
-      <Route path="trinajorlar" element={<Trinajorlar />} />
-      <Route path="reports" element={<Reports />} />
-      <Route path="admin" element={<PrivateRoute roles={['admin']}><AdminDashboard /></PrivateRoute>} />
-      <Route path="admin/users" element={<PrivateRoute roles={['admin']}><UserManagement /></PrivateRoute>} />
-      <Route path="admin/sports" element={<PrivateRoute roles={['admin']}><Sports /></PrivateRoute>} />
-      <Route path="admin/audit" element={<PrivateRoute roles={['admin']}><AuditLog /></PrivateRoute>} />
-      <Route path="admin/protocols" element={<PrivateRoute roles={['admin', 'researcher']}><Protocols /></PrivateRoute>} />
+      <Route index element={<RoleHome />} />
+
+      {/* Sportchi shaxsiy kabineti */}
+      <Route path="me" element={<AthleteRoute><MyCabinet /></AthleteRoute>} />
+      <Route path="me/history" element={<AthleteRoute><MyHistory /></AthleteRoute>} />
+
+      {/* Trener / Super Admin bo'limi */}
+      <Route path="athletes" element={<StaffRoute><Athletes /></StaffRoute>} />
+      <Route path="athletes/:id" element={<StaffRoute><AthleteDetail /></StaffRoute>} />
+      <Route path="teams" element={<StaffRoute><Teams /></StaffRoute>} />
+      <Route path="sessions" element={<StaffRoute><Sessions /></StaffRoute>} />
+      <Route path="sessions/new" element={<StaffRoute><NewSession /></StaffRoute>} />
+      <Route path="sessions/:id" element={<StaffRoute><SessionDetail /></StaffRoute>} />
+      <Route path="analytics" element={<StaffRoute><Analytics /></StaffRoute>} />
+      <Route path="trinajorlar" element={<StaffRoute><Trinajorlar /></StaffRoute>} />
+      <Route path="reports" element={<StaffRoute><Reports /></StaffRoute>} />
+
+      {/* Admin panel — Admin va Super Admin */}
+      <Route path="admin" element={<PrivateRoute roles={['admin', 'super_admin']}><AdminDashboard /></PrivateRoute>} />
+      <Route path="admin/users" element={<PrivateRoute roles={['admin', 'super_admin']}><UserManagement /></PrivateRoute>} />
+      <Route path="admin/sports" element={<PrivateRoute roles={['admin', 'super_admin']}><Sports /></PrivateRoute>} />
+      {/* Faqat Super Admin */}
+      <Route path="admin/audit" element={<PrivateRoute roles={['super_admin']}><AuditLog /></PrivateRoute>} />
+      <Route path="admin/protocols" element={<PrivateRoute roles={['admin', 'researcher', 'super_admin']}><Protocols /></PrivateRoute>} />
     </Route>
 
     <Route path="*" element={<Navigate to="/" replace />} />

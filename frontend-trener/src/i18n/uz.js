@@ -20,13 +20,13 @@ export default {
     passwordMismatch: "Parollar mos kelmayapti",
   },
   nav: {
-    dashboard: 'Bosh sahifa', athletes: 'Sportchilar', sessions: 'Test sessiyalari',
+    dashboard: 'Bosh sahifa', teams: 'Jamoalar', athletes: 'Sportchilar', sessions: 'Test sessiyalari',
     analytics: 'Analitika', reports: 'Hisobotlar', adminPanel: 'Admin panel',
     adminHome: 'Admin bosh sahifa', users: 'Foydalanuvchilar', sports: 'Sport turlari',
     protocols: 'Protokollar', audit: 'Audit jurnali', monitoring: 'Monitoring tizimi',
   },
   roles: {
-    admin: 'Administrator', researcher: 'Tadqiqotchi', coach: 'Murabbiy',
+    super_admin: 'Super Admin', admin: 'Administrator', researcher: 'Tadqiqotchi', coach: 'Murabbiy',
     operator: 'Operator', athlete: 'Sportchi',
   },
   dashboard: {

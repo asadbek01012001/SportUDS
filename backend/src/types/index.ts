@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'researcher' | 'coach' | 'operator' | 'athlete';
+export type UserRole = 'super_admin' | 'admin' | 'researcher' | 'coach' | 'operator' | 'athlete';
 
 export interface User {
   id: string;
@@ -38,7 +38,8 @@ export interface Sport {
 export interface Team {
   id: string;
   name: string;
-  sport_id: string;
+  sport_id?: string;
+  hall_id?: string;
   coach_id?: string;
   description?: string;
 }
@@ -96,6 +97,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: UserRole;
+  athleteId?: string;
 }
 
 export interface PaginationQuery {

@@ -20,13 +20,13 @@ export default {
     passwordMismatch: 'Passwords do not match',
   },
   nav: {
-    dashboard: 'Dashboard', athletes: 'Athletes', sessions: 'Test Sessions',
+    dashboard: 'Dashboard', teams: 'Teams', athletes: 'Athletes', sessions: 'Test Sessions',
     analytics: 'Analytics', reports: 'Reports', adminPanel: 'Admin Panel',
     adminHome: 'Admin Home', users: 'Users', sports: 'Sports',
     protocols: 'Protocols', audit: 'Audit Log', monitoring: 'Monitoring System',
   },
   roles: {
-    admin: 'Administrator', researcher: 'Researcher', coach: 'Coach',
+    super_admin: 'Super Admin', admin: 'Administrator', researcher: 'Researcher', coach: 'Coach',
     operator: 'Operator', athlete: 'Athlete',
   },
   dashboard: {

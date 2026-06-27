@@ -30,6 +30,13 @@ export const authAPI = {
   changePassword: (data) => api.put('/auth/change-password', data),
 };
 
+// Sportchining o'z ma'lumotlari (shaxsiy kabinet)
+export const athleteSelfAPI = {
+  verify: () => api.get('/athlete/verify'),     // profil
+  history: () => api.get('/athlete/history'),   // mashg'ulot tarixi
+  team: () => api.get('/athlete/team'),         // jamoam (trenerlar + jamoadoshlar)
+};
+
 // Admin
 export const adminAPI = {
   getStats: () => api.get('/admin/stats'),
@@ -49,6 +56,18 @@ export const athletesAPI = {
   create: (data) => api.post('/athletes', data),
   update: (id, data) => api.put(`/athletes/${id}`, data),
   delete: (id) => api.delete(`/athletes/${id}`),
+};
+
+// Teams (Jamoalar) — ko'p trener, ixtiyoriy filial
+export const teamsAPI = {
+  getAll: () => api.get('/teams'),
+  getById: (id) => api.get(`/teams/${id}`),
+  create: (data) => api.post('/teams', data),
+  update: (id, data) => api.put(`/teams/${id}`, data),
+  delete: (id) => api.delete(`/teams/${id}`),
+  getCoaches: () => api.get('/teams/coaches'),
+  addAthlete: (id, athlete_id) => api.post(`/teams/${id}/athletes`, { athlete_id }),
+  removeAthlete: (id, athlete_id) => api.delete(`/teams/${id}/athletes/${athlete_id}`),
 };
 
 // Sessions

@@ -20,13 +20,13 @@ export default {
     passwordMismatch: 'Пароли не совпадают',
   },
   nav: {
-    dashboard: 'Главная', athletes: 'Спортсмены', sessions: 'Тест-сессии',
+    dashboard: 'Главная', teams: 'Команды', athletes: 'Спортсмены', sessions: 'Тест-сессии',
     analytics: 'Аналитика', reports: 'Отчёты', adminPanel: 'Админ панель',
     adminHome: 'Главная админа', users: 'Пользователи', sports: 'Виды спорта',
     protocols: 'Протоколы', audit: 'Журнал аудита', monitoring: 'Система мониторинга',
   },
   roles: {
-    admin: 'Администратор', researcher: 'Исследователь', coach: 'Тренер',
+    super_admin: 'Супер админ', admin: 'Администратор', researcher: 'Исследователь', coach: 'Тренер',
     operator: 'Оператор', athlete: 'Спортсмен',
   },
   dashboard: {
