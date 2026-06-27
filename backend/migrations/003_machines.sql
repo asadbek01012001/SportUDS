@@ -49,15 +49,17 @@ CREATE INDEX IF NOT EXISTS idx_machine_sessions_machine ON machine_sessions(mach
 CREATE INDEX IF NOT EXISTS idx_measurements_session     ON measurements(session_id);
 CREATE INDEX IF NOT EXISTS idx_measurements_recorded    ON measurements(recorded_at);
 
--- Default zallar
-INSERT INTO halls (name, address) VALUES
+-- Default zallar (idempotent — nom bo'yicha takrorlanmaydi)
+INSERT INTO halls (name, address)
+SELECT v.name, v.address FROM (VALUES
   ('Yunusobod Sport Markazi',  'Yunusobod tumani, 5-mavze, 15-uy'),
   ('Chilonzor Olimpiya Zali',  'Chilonzor tumani, 9-kvartal'),
   ('Mirzo Ulugbek Sport Zali', 'Mirzo Ulugbek tumani, Universitet ko''chasi')
-ON CONFLICT DO NOTHING;
+) AS v(name, address)
+WHERE NOT EXISTS (SELECT 1 FROM halls h WHERE h.name = v.name);
 
--- Har zal uchun 3 ta mashina
+-- Har zal uchun 3 ta mashina (idempotent — zal+nom bo'yicha takrorlanmaydi)
 INSERT INTO machines (hall_id, name, serial_number)
 SELECT h.id, 'UDS #' || n, 'SN-00' || n || substr(h.id::text, 1, 4)
 FROM halls h, generate_series(1,3) AS n
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (SELECT 1 FROM machines m WHERE m.hall_id = h.id AND m.name = 'UDS #' || n);

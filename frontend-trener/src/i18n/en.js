@@ -24,6 +24,7 @@ export default {
     analytics: 'Analytics', reports: 'Reports', adminPanel: 'Admin Panel',
     adminHome: 'Admin Home', users: 'Users', sports: 'Sports',
     protocols: 'Protocols', audit: 'Audit Log', monitoring: 'Monitoring System',
+    qrcodes: 'Machine QR',
   },
   roles: {
     super_admin: 'Super Admin', admin: 'Administrator', researcher: 'Researcher', coach: 'Coach',

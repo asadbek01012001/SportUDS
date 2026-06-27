@@ -24,6 +24,7 @@ export default {
     analytics: 'Analitika', reports: 'Hisobotlar', adminPanel: 'Admin panel',
     adminHome: 'Admin bosh sahifa', users: 'Foydalanuvchilar', sports: 'Sport turlari',
     protocols: 'Protokollar', audit: 'Audit jurnali', monitoring: 'Monitoring tizimi',
+    qrcodes: 'Trenajor QR',
   },
   roles: {
     super_admin: 'Super Admin', admin: 'Administrator', researcher: 'Tadqiqotchi', coach: 'Murabbiy',

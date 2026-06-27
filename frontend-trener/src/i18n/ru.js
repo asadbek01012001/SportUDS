@@ -24,6 +24,7 @@ export default {
     analytics: 'Аналитика', reports: 'Отчёты', adminPanel: 'Админ панель',
     adminHome: 'Главная админа', users: 'Пользователи', sports: 'Виды спорта',
     protocols: 'Протоколы', audit: 'Журнал аудита', monitoring: 'Система мониторинга',
+    qrcodes: 'QR тренажёров',
   },
   roles: {
     super_admin: 'Супер админ', admin: 'Администратор', researcher: 'Исследователь', coach: 'Тренер',

@@ -50,10 +50,13 @@ app.get('/api/health', (_req, res) => {
 
 // QR kod skanerlanganda kamera brauzer ochadi → bu sahifa deep link orqali ilovaga yo'naltiradi
 app.get('/scan', (req, res) => {
-  const token = req.query.token as string;
-  const deepLink = `sportuds://scan?token=${token}`;
+  const token = req.query.token as string | undefined;
+  const machine = req.query.machine as string | undefined;
+  // Trenajor QR (machine) yoki eski token oqimi
+  const qs = machine ? `machine=${machine}` : `token=${token}`;
+  const deepLink = `sportuds://scan?${qs}`;
   // Android intent URL - Chrome/Android 12+ da ishonchli ishlaydi
-  const intentUrl = `intent://scan?token=${token}#Intent;scheme=sportuds;package=com.sportuds.app;end`;
+  const intentUrl = `intent://scan?${qs}#Intent;scheme=sportuds;package=com.sportuds.app;end`;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(`<!DOCTYPE html>
 <html>

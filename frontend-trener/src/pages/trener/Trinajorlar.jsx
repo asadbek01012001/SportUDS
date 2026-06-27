@@ -1,11 +1,14 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Modal } from 'antd';
+import { Modal, message } from 'antd';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
+import QRCode from 'qrcode';
+import { jsPDF } from 'jspdf';
+import api from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 
 /* ── Leaflet icon fix ── */
@@ -40,7 +43,6 @@ const ZALLAR = [
       { id: 1, name: 'UDS #1', barCm: 120, status: 'faol',   athleteId: 1 },
       { id: 2, name: 'UDS #2', barCm: 95,  status: 'faol',   athleteId: 2 },
       { id: 3, name: 'UDS #3', barCm: 150, status: 'texnik', athleteId: null },
-      { id: 4, name: 'UDS #4', barCm: 110, status: 'faol',   athleteId: 3 },
     ],
   },
   {
@@ -50,6 +52,7 @@ const ZALLAR = [
     trinajorlar: [
       { id: 1, name: 'UDS #1', barCm: 130, status: 'faol',   athleteId: 4 },
       { id: 2, name: 'UDS #2', barCm: 85,  status: 'faol',   athleteId: 5 },
+      { id: 3, name: 'UDS #3', barCm: 115, status: 'faol',   athleteId: 8 },
     ],
   },
   {
@@ -341,6 +344,49 @@ export default function Trinajorlar() {
     return () => clearInterval(tick);
   }, []);
 
+  /* ── Real trenajorlar (QR uchun): hall nomi → tartiblangan machine ro'yxati ── */
+  const [realByHall, setRealByHall] = useState({});
+  const [qrBusy, setQrBusy] = useState(null);
+
+  useEffect(() => {
+    api.get('/halls').then(r => {
+      const map = {};
+      (r.data.data || []).forEach(h => {
+        map[h.name] = (h.machines || []).filter(Boolean)
+          .sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setRealByHall(map);
+    }).catch(() => {});
+  }, []);
+
+  // Mock trenajor (zal nomi + tartib raqami) → real machine yozuvi
+  const realMachineFor = (zalName, idx) => realByHall[zalName]?.[idx] || null;
+
+  // Real machine_id bo'yicha QR'ni PDF qilib yuklab olish
+  const downloadQrPdf = async (machine, hallName) => {
+    setQrBusy(machine.id);
+    try {
+      const r = await api.get(`/machine/${machine.id}/qr`);
+      const { qr_url, name, serial_number } = r.data.data;
+      const dataUrl = await QRCode.toDataURL(qr_url, { width: 800, margin: 1 });
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      doc.setFontSize(24); doc.text('SportUDS', pageW / 2, 28, { align: 'center' });
+      doc.setFontSize(18); doc.text(name, pageW / 2, 42, { align: 'center' });
+      if (hallName) { doc.setFontSize(12); doc.setTextColor(120); doc.text(hallName, pageW / 2, 51, { align: 'center' }); doc.setTextColor(0); }
+      const size = 110, x = (pageW - size) / 2;
+      doc.addImage(dataUrl, 'PNG', x, 62, size, size);
+      doc.setFontSize(13); doc.text("Mashg'ulotni boshlash uchun ilovada skanerlang", pageW / 2, 62 + size + 14, { align: 'center' });
+      if (serial_number) { doc.setFontSize(10); doc.setTextColor(150); doc.text(`SN: ${serial_number}`, pageW / 2, 62 + size + 24, { align: 'center' }); }
+      doc.setFontSize(8); doc.setTextColor(180); doc.text(qr_url, pageW / 2, 285, { align: 'center' });
+      doc.save(`SportUDS_QR_${name.replace(/\s+/g, '_')}.pdf`);
+    } catch {
+      message.error('QR yaratishda xato');
+    } finally {
+      setQrBusy(null);
+    }
+  };
+
   const sb       = isDark ? '#0d1424'                : '#ffffff';
   const sbBdr    = isDark ? 'rgba(255,255,255,0.07)' : '#e2e8f0';
   const textMain = isDark ? '#e2e8f0' : '#1e293b';
@@ -451,11 +497,12 @@ export default function Trinajorlar() {
                 Trinajorlar holati
               </div>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                {activeZal.trinajorlar.map(t => {
+                {activeZal.trinajorlar.map((t, ti) => {
                   const key = `${activeZal.id}-${t.id}`;
                   const ld  = live[key];
                   const athlete = t.athleteId ? ATHLETES.find(a=>a.id===t.athleteId) : null;
                   const isFaol  = t.status === 'faol';
+                  const real    = realMachineFor(activeZal.name, ti);
                   return (
                     <div key={t.id} style={{
                       background: isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)',
@@ -529,6 +576,23 @@ export default function Trinajorlar() {
                         <div style={{ fontSize:11, color:'#f59e0b', marginTop:4 }}>
                           ⚙ Texnik xizmat ko'rsatilmoqda
                         </div>
+                      )}
+
+                      {/* QR kod (PDF) — real trenajorga bog'langan */}
+                      {real && (
+                        <button
+                          onClick={() => downloadQrPdf(real, activeZal.name)}
+                          disabled={qrBusy === real.id}
+                          style={{
+                            marginTop: 8, width: '100%', padding: '7px 0', borderRadius: 8,
+                            cursor: qrBusy === real.id ? 'default' : 'pointer',
+                            border: `1px solid ${MARKER_COLOR}55`,
+                            background: isDark ? 'rgba(99,102,241,0.12)' : 'rgba(99,102,241,0.08)',
+                            color: MARKER_COLOR, fontWeight: 700, fontSize: 11,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          }}>
+                          {qrBusy === real.id ? 'Tayyorlanmoqda…' : '⬛ QR kod (PDF)'}
+                        </button>
                       )}
                     </div>
                   );

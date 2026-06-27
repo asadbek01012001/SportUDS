@@ -29,6 +29,62 @@ export const scanQr = async (req: Request, res: Response) => {
   }
 };
 
+// Trenajor QR ma'lumoti (web'da PDF qilish uchun) — doimiy QR, machine_id ni kodlaydi
+export const getMachineQr = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await query(
+      `SELECT m.id, m.name, m.serial_number, h.name AS hall_name
+       FROM machines m JOIN halls h ON h.id = m.hall_id
+       WHERE m.id=$1 AND m.is_active=true`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Trenajor topilmadi' });
+    const base = process.env.APP_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+    const qr_url = `${base}/scan?machine=${rows[0].id}`;
+    res.json({ success: true, data: { ...rows[0], qr_url } });
+  } catch {
+    res.status(500).json({ success: false, error: 'Server xatosi' });
+  }
+};
+
+// Mobil QR skanerlaganda — trenajor bo'yicha to'g'ridan-to'g'ri sessiya boshlash
+export const startByMachine = async (req: Request, res: Response) => {
+  const { machine_id, athlete_id } = req.body;
+  if (!machine_id || !athlete_id) {
+    return res.status(400).json({ success: false, error: 'machine_id va athlete_id kerak' });
+  }
+  try {
+    const m = await query(
+      `SELECT m.id, m.name, h.name AS hall_name
+       FROM machines m JOIN halls h ON h.id = m.hall_id
+       WHERE m.id=$1 AND m.is_active=true`,
+      [machine_id]
+    );
+    if (!m.rows.length) return res.status(404).json({ success: false, error: 'Trenajor topilmadi' });
+
+    // Shu trenajordagi eski ochiq sessiyalarni yopamiz
+    await query(
+      `UPDATE machine_sessions SET status='completed', ended_at=NOW()
+       WHERE machine_id=$1 AND status IN ('waiting','active')`,
+      [machine_id]
+    );
+
+    const { rows } = await query(
+      `INSERT INTO machine_sessions (machine_id, athlete_id, status, started_at)
+       VALUES ($1,$2,'active',NOW())
+       RETURNING id, machine_id, status, started_at`,
+      [machine_id, athlete_id]
+    );
+
+    const session = { ...rows[0], machine_name: m.rows[0].name, hall_name: m.rows[0].hall_name };
+    emitSessionStatus(session.id, 'active');
+    res.json({ success: true, data: session });
+  } catch {
+    res.status(500).json({ success: false, error: 'Server xatosi' });
+  }
+};
+
 // Mashina ma'lumot yuboradi (bar_cm + weight_kg)
 export const saveMeasurement = async (req: Request, res: Response) => {
   const { session_id, bar_cm, weight_kg } = req.body;
