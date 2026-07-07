@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Modal, message } from 'antd';
+import { Modal, message, Select, Button, Empty } from 'antd';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -8,7 +8,7 @@ import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import QRCode from 'qrcode';
 import { jsPDF } from 'jspdf';
-import api from '../../services/api';
+import api, { devicesAPI } from '../../services/api';
 import { useTheme } from '../../context/ThemeContext';
 
 /* ── Leaflet icon fix ── */
@@ -387,6 +387,95 @@ export default function Trinajorlar() {
     }
   };
 
+  /* ══════════════════════════════════════════════════
+     REAL DEVICE ↔ TRENAJOR bog'liqligi (1:1 ixtiyoriy)
+     device'dan kelgan jonli telemetriya trenajor kartochkasida
+  ══════════════════════════════════════════════════ */
+  const [allDevices, setAllDevices]   = useState([]);          // barcha device'lar (biriktirilmaganini tanlash uchun)
+  const [machineDev, setMachineDev]   = useState({});          // machineId → { device, online } | null | undefined
+  const [attachMachine, setAttachMachine] = useState(null);    // biriktirish modali ochiq bo'lgan real trenajor
+  const [attachSel, setAttachSel]     = useState(null);        // tanlangan biriktirilmagan device id
+  const [devBusy, setDevBusy]         = useState(false);
+
+  const loadAllDevices = useCallback(async () => {
+    try { const r = await devicesAPI.getAll(); setAllDevices(r.data.data || []); }
+    catch { /* ixtiyoriy */ }
+  }, []);
+
+  useEffect(() => { loadAllDevices(); }, [loadAllDevices]);
+
+  // Tanlangan zalning real trenajorlari uchun device + oxirgi telemetriyani yangilaydi.
+  const refreshMachineDevices = useCallback(async (zal) => {
+    if (!zal) return;
+    const machines = realByHall[zal.name] || [];
+    const results = await Promise.all(machines.map(async (m) => {
+      try {
+        const r = await devicesAPI.getByMachine(m.id);
+        const data = r.data.data;
+        const online = data?.last_seen ? (Date.now() - new Date(data.last_seen).getTime() < 60000) : false;
+        return [m.id, data ? { device: data, online } : null];
+      } catch { return [m.id, undefined]; }
+    }));
+    setMachineDev((prev) => { const next = { ...prev }; results.forEach(([id, v]) => { next[id] = v; }); return next; });
+  }, [realByHall]);
+
+  // Zal tanlanganda + har 4s da telemetriyani yangilab turamiz (jonli).
+  useEffect(() => {
+    if (!activeZal) return;
+    refreshMachineDevices(activeZal);
+    const t = setInterval(() => refreshMachineDevices(activeZal), 4000);
+    return () => clearInterval(t);
+  }, [activeZal, refreshMachineDevices]);
+
+  const detachDevice = async (deviceId, machineId) => {
+    setDevBusy(true);
+    try {
+      await devicesAPI.assign(deviceId, null);
+      message.success('Qurilma uzildi');
+      await Promise.all([loadAllDevices(), refreshMachineDevices(activeZal)]);
+      setMachineDev((p) => ({ ...p, [machineId]: null }));
+    } catch (e) { message.error(e.response?.data?.error || 'Xato'); }
+    finally { setDevBusy(false); }
+  };
+
+  const confirmAttach = async () => {
+    if (!attachSel || !attachMachine) return;
+    setDevBusy(true);
+    try {
+      await devicesAPI.assign(attachSel, attachMachine.id);
+      message.success('Qurilma biriktirildi');
+      setAttachMachine(null); setAttachSel(null);
+      await Promise.all([loadAllDevices(), refreshMachineDevices(activeZal)]);
+    } catch (e) { message.error(e.response?.data?.error || 'Xato'); }
+    finally { setDevBusy(false); }
+  };
+
+  // Yangi device yaratib darhol shu trenajorga biriktiradi.
+  const createAndAttach = async () => {
+    if (!attachMachine) return;
+    setDevBusy(true);
+    try {
+      const r = await devicesAPI.create({ machine_id: attachMachine.id });
+      const c = r.data.credentials;
+      Modal.success({
+        title: 'Qurilma yaratildi va biriktirildi',
+        content: (
+          <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+            <div>Bu ma'lumot faqat hozir ko'rsatiladi — qurilmaga yozing:</div>
+            <div><b>client_id:</b> <code>{c.mqtt_client_id}</code></div>
+            <div><b>parol:</b> <code>{c.mqtt_password}</code></div>
+            <div><b>device_uid:</b> <code>{c.device_uid}</code></div>
+          </div>
+        ),
+      });
+      setAttachMachine(null); setAttachSel(null);
+      await Promise.all([loadAllDevices(), refreshMachineDevices(activeZal)]);
+    } catch (e) { message.error(e.response?.data?.error || 'Xato'); }
+    finally { setDevBusy(false); }
+  };
+
+  const unattachedDevices = allDevices.filter((d) => !d.machine_id);
+
   const sb       = isDark ? '#0d1424'                : '#ffffff';
   const sbBdr    = isDark ? 'rgba(255,255,255,0.07)' : '#e2e8f0';
   const textMain = isDark ? '#e2e8f0' : '#1e293b';
@@ -503,6 +592,7 @@ export default function Trinajorlar() {
                   const athlete = t.athleteId ? ATHLETES.find(a=>a.id===t.athleteId) : null;
                   const isFaol  = t.status === 'faol';
                   const real    = realMachineFor(activeZal.name, ti);
+                  const md      = real ? machineDev[real.id] : undefined;
                   return (
                     <div key={t.id} style={{
                       background: isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)',
@@ -594,6 +684,68 @@ export default function Trinajorlar() {
                           {qrBusy === real.id ? 'Tayyorlanmoqda…' : '⬛ QR kod (PDF)'}
                         </button>
                       )}
+
+                      {/* ── Real device (qurilma) paneli + jonli telemetriya ── */}
+                      {real && (
+                        <div style={{
+                          marginTop: 8, padding: '8px 10px', borderRadius: 8,
+                          border: `1px solid ${sbBdr}`,
+                          background: isDark ? 'rgba(56,189,248,0.06)' : 'rgba(56,189,248,0.05)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: (md && md.device) ? 6 : 0 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: textMuted, textTransform: 'uppercase', letterSpacing: 0.5, flex: 1 }}>
+                              📡 Qurilma
+                            </span>
+                            {md === undefined && <span style={{ fontSize: 10, color: textMuted }}>…</span>}
+                            {md && md.device && (
+                              <span style={{
+                                fontSize: 9, fontWeight: 700, padding: '1px 7px', borderRadius: 20,
+                                background: md.online ? '#22c55e20' : '#64748b20',
+                                color: md.online ? '#22c55e' : '#94a3b8',
+                              }}>{md.online ? '● onlayn' : '○ oflayn'}</span>
+                            )}
+                          </div>
+
+                          {md && md.device ? (
+                            <>
+                              <div style={{ fontSize: 11, fontFamily: 'monospace', color: textMain, marginBottom: 5 }}>
+                                {md.device.mqtt_client_id}
+                              </div>
+                              {md.device.latest ? (
+                                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 7 }}>
+                                  {md.device.latest.bar_cm != null && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#38bdf8', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 6, padding: '2px 6px' }}>bar {md.device.latest.bar_cm} sm</span>
+                                  )}
+                                  {md.device.latest.weight_kg != null && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#f87171', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 6, padding: '2px 6px' }}>{md.device.latest.weight_kg} kg</span>
+                                  )}
+                                  {md.device.latest.reps != null && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: '#34d399', background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)', borderRadius: 6, padding: '2px 6px' }}>{md.device.latest.reps} takror</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: 10, color: textMuted, marginBottom: 7 }}>telemetriya hali yo'q</div>
+                              )}
+                              <button
+                                onClick={() => detachDevice(md.device.id, real.id)}
+                                disabled={devBusy}
+                                style={{
+                                  width: '100%', padding: '5px 0', borderRadius: 7, cursor: 'pointer',
+                                  border: `1px solid ${isDark ? 'rgba(248,113,113,0.4)' : '#fca5a5'}`,
+                                  background: 'transparent', color: '#f87171', fontWeight: 600, fontSize: 10,
+                                }}>Uzish</button>
+                            </>
+                          ) : md === null ? (
+                            <button
+                              onClick={() => { setAttachMachine(real); setAttachSel(null); }}
+                              style={{
+                                width: '100%', padding: '6px 0', borderRadius: 7, cursor: 'pointer',
+                                border: `1px dashed ${isDark ? 'rgba(56,189,248,0.45)' : '#7dd3fc'}`,
+                                background: 'transparent', color: '#38bdf8', fontWeight: 600, fontSize: 11,
+                              }}>+ Qurilma biriktirish</button>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -660,19 +812,24 @@ export default function Trinajorlar() {
               gridTemplateColumns:`repeat(${cols},1fr)`,
               gap:10, padding:10, overflow:'hidden',
             }}>
-              {activeZal.trinajorlar.map(t => {
+              {activeZal.trinajorlar.map((t, ti) => {
                 const key     = `${activeZal.id}-${t.id}`;
                 const ld      = live[key];
                 const athlete = t.athleteId ? ATHLETES.find(a=>a.id===t.athleteId) : null;
                 const isFaol  = t.status === 'faol';
-                const barCm   = ld?.barCm ?? t.barCm;
+                // Real device telemetriyasi (trenajorga biriktirilgan qurilmadan kelgan oxirgi o'lchov)
+                const realM   = realMachineFor(activeZal.name, ti);
+                const lt      = realM ? machineDev[realM.id]?.device?.latest : null;
+                const hasReal = !!(lt && lt.bar_cm != null);
+                // 3D shtanga balandligi: real device bo'lsa — UNDAN (jonli), aks holda mock simulyatsiya.
+                const barCm   = hasReal ? Number(lt.bar_cm) : (ld?.barCm ?? t.barCm);
 
                 const panelBg  = isDark ? 'rgba(5,10,20,0.92)' : 'rgba(248,250,252,0.97)';
                 const rowHover = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)';
                 const divCol   = isDark ? 'rgba(255,255,255,0.07)' : '#e2e8f0';
 
                 const metrics = isFaol && ld ? [
-                  { label:'Balandlik', value:`${barCm.toFixed(0)} sm`,            color:'#38bdf8' },
+                  { label: hasReal ? 'Balandlik (jonli)' : 'Balandlik', value:`${barCm.toFixed(0)} sm`, color:'#38bdf8' },
                   { label:'Fmax',      value:`${(ld.Fmax/9.81).toFixed(1)} kg`,   color:'#f87171' },
                   { label:'P₀',        value:`${ld.P0} J`,                        color:'#fb923c' },
                   { label:'Vmax',      value:`${ld.Vmax} m/s`,                    color:'#a78bfa' },
@@ -723,6 +880,12 @@ export default function Trinajorlar() {
                           color:isFaol?'#22c55e':'#f59e0b',
                           border:`1px solid ${isFaol?'#22c55e40':'#f59e0b40'}`,
                         }}>{isFaol?'Faol':'Texnik'}</span>
+                        {hasReal && (
+                          <span style={{
+                            fontSize:9, fontWeight:700, padding:'2px 6px', borderRadius:20, flexShrink:0,
+                            background:'#38bdf820', color:'#38bdf8', border:'1px solid #38bdf840',
+                          }}>📡 jonli</span>
+                        )}
                       </div>
 
                       {isFaol && athlete ? (
@@ -798,6 +961,40 @@ export default function Trinajorlar() {
               })}
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* ════ QURILMA BIRIKTIRISH MODALI ════ */}
+      <Modal
+        title={`Qurilma biriktirish — ${attachMachine?.name || ''}`}
+        open={!!attachMachine}
+        onCancel={() => { setAttachMachine(null); setAttachSel(null); }}
+        footer={[
+          <Button key="new" onClick={createAndAttach} loading={devBusy}>
+            Yangi yaratib biriktirish
+          </Button>,
+          <Button key="ok" type="primary" onClick={confirmAttach} loading={devBusy} disabled={!attachSel}>
+            Biriktirish
+          </Button>,
+        ]}
+        width={480}
+      >
+        <div style={{ fontSize: 13, marginBottom: 12 }}>
+          Biriktirilmagan qurilmani tanlang yoki shu trenajor uchun yangisini yarating:
+        </div>
+        {unattachedDevices.length ? (
+          <Select
+            style={{ width: '100%' }}
+            placeholder="Biriktirilmagan qurilma"
+            value={attachSel}
+            onChange={setAttachSel}
+            options={unattachedDevices.map((d) => ({
+              value: d.id,
+              label: `${d.mqtt_client_id} (uid ${d.device_uid})`,
+            }))}
+          />
+        ) : (
+          <Empty description="Biriktirilmagan qurilma yo'q — yangisini yarating" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         )}
       </Modal>
     </div>

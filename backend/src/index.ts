@@ -16,6 +16,7 @@ import supervisorRoutes from './routes/supervisor.routes';
 import machineRoutes from './routes/machine.routes';
 import athleteAuthRoutes from './routes/athleteAuth.routes';
 import teamsRoutes from './routes/teams.routes';
+import devicesRoutes from './routes/devices.routes';
 
 import { initSocket } from './socket';
 
@@ -43,6 +44,7 @@ app.use('/api/supervisor', supervisorRoutes);
 app.use('/api/machine', machineRoutes);
 app.use('/api/athlete', athleteAuthRoutes);
 app.use('/api/teams', teamsRoutes);
+app.use('/api/devices', devicesRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

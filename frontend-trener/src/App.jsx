@@ -18,6 +18,7 @@ import UserManagement from './pages/admin/UserManagement';
 import AuditLog from './pages/admin/AuditLog';
 import Protocols from './pages/admin/Protocols';
 import Sports from './pages/admin/Sports';
+import Devices from './pages/admin/Devices';
 import Trinajorlar from './pages/trener/Trinajorlar';
 import Teams from './pages/Teams';
 import MyCabinet from './pages/athlete/MyCabinet';
@@ -83,6 +84,7 @@ const AppRoutes = () => (
       <Route path="admin" element={<PrivateRoute roles={['admin', 'super_admin']}><AdminDashboard /></PrivateRoute>} />
       <Route path="admin/users" element={<PrivateRoute roles={['admin', 'super_admin']}><UserManagement /></PrivateRoute>} />
       <Route path="admin/sports" element={<PrivateRoute roles={['admin', 'super_admin']}><Sports /></PrivateRoute>} />
+      <Route path="admin/devices" element={<PrivateRoute roles={['admin', 'super_admin']}><Devices /></PrivateRoute>} />
       {/* Faqat Super Admin */}
       <Route path="admin/audit" element={<PrivateRoute roles={['super_admin']}><AuditLog /></PrivateRoute>} />
       <Route path="admin/protocols" element={<PrivateRoute roles={['admin', 'researcher', 'super_admin']}><Protocols /></PrivateRoute>} />

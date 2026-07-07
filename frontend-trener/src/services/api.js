@@ -95,4 +95,21 @@ export const analyticsAPI = {
   getRecommendation: (athleteId) => api.get(`/analytics/recommendation/${athleteId}`),
 };
 
+// Devices (IoT trenajor qurilmalari) + OTA — energolink device-connect/ota integratsiyasi
+export const devicesAPI = {
+  getAll: () => api.get('/devices'),
+  create: (data) => api.post('/devices', data),
+  delete: (id) => api.delete(`/devices/${id}`),
+  startOta: (id, firmware_id) => api.post(`/devices/${id}/ota`, { firmware_id }),
+  // machine_id: uuid → biriktirish, null → uzish
+  assign: (id, machine_id) => api.post(`/devices/${id}/assign`, { machine_id }),
+  // trenajorga biriktirilgan device + oxirgi telemetriya
+  getByMachine: (machineId) => api.get(`/machine/${machineId}/device`),
+};
+
+// Halls (zallar + mashinalar) — qurilmani trenajorga biriktirish uchun ro'yxat
+export const hallsAPI = {
+  getAll: () => api.get('/halls'),
+};
+
 export default api;
