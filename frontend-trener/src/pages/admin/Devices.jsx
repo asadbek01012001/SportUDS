@@ -6,7 +6,7 @@ import {
 import {
   PlusOutlined, DeleteOutlined, ApiOutlined, CloudUploadOutlined, CopyOutlined,
 } from '@ant-design/icons';
-import { devicesAPI, hallsAPI } from '../../services/api';
+import { devicesAPI, hallsAPI, firmwaresAPI } from '../../services/api';
 
 const { Title, Text } = Typography;
 
@@ -19,6 +19,7 @@ const STATUS_META = {
 export default function Devices() {
   const [devices, setDevices] = useState([]);
   const [halls, setHalls] = useState([]);
+  const [firmwares, setFirmwares] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
@@ -47,7 +48,14 @@ export default function Devices() {
     } catch { /* zallar ixtiyoriy */ }
   };
 
-  useEffect(() => { fetchDevices(); fetchHalls(); }, []);
+  const fetchFirmwares = async () => {
+    try {
+      const res = await firmwaresAPI.getAll();
+      setFirmwares(res.data.data || []);
+    } catch { /* proshivkalar ixtiyoriy */ }
+  };
+
+  useEffect(() => { fetchDevices(); fetchHalls(); fetchFirmwares(); }, []);
 
   const openAdd = () => { addForm.resetFields(); setAddOpen(true); };
 
@@ -257,16 +265,25 @@ export default function Devices() {
       >
         <Alert
           type="info"
-          message="Firmware oldindan firmwares jadvalida bo'lishi kerak. Proshivka ID'sini (UUID) kiriting."
+          message="Proshivkani ro'yxatdan tanlang. Ro'yxat bo'sh bo'lsa, avval «Proshivkalar» bo'limida .bin yuklang."
           style={{ marginBottom: 16 }}
         />
         <Form form={otaForm} layout="vertical" onFinish={handleOta}>
           <Form.Item
             name="firmware_id"
-            label="Firmware ID (UUID)"
-            rules={[{ required: true, message: 'Firmware ID kiritilishi shart' }]}
+            label="Proshivka"
+            rules={[{ required: true, message: 'Proshivka tanlanishi shart' }]}
           >
-            <Input placeholder="masalan: 3f2b...-...." />
+            <Select
+              placeholder="Proshivka versiyasini tanlang"
+              showSearch
+              optionFilterProp="label"
+              options={firmwares.map((f) => ({
+                value: f.id,
+                label: `v${f.version}${f.target ? ` — ${f.target}` : ''} (${f.status})`,
+              }))}
+              notFoundContent="Proshivka yo'q — avval yuklang"
+            />
           </Form.Item>
         </Form>
       </Modal>

@@ -107,6 +107,17 @@ export const devicesAPI = {
   getByMachine: (machineId) => api.get(`/machine/${machineId}/device`),
 };
 
+// Firmwares (OTA proshivka repozitoriysi) — .bin base64 sifatida yuklanadi (≤64KB slot)
+export const firmwaresAPI = {
+  getAll: () => api.get('/firmwares'),
+  getById: (id) => api.get(`/firmwares/${id}`),
+  // data: { ver_major, ver_minor, ver_patch?, target, channel?, status?, release_notes?, file_a, file_b? }
+  upload: (data) => api.post('/firmwares', data),
+  patch: (id, data) => api.patch(`/firmwares/${id}`, data),
+  delete: (id) => api.delete(`/firmwares/${id}`),
+  downloadUrl: (id) => `${api.defaults.baseURL}/firmwares/${id}/download`,
+};
+
 // Halls (zallar + mashinalar) — qurilmani trenajorga biriktirish uchun ro'yxat
 export const hallsAPI = {
   getAll: () => api.get('/halls'),

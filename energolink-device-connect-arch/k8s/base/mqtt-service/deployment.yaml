@@ -1,0 +1,144 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mqtt-service
+  namespace: energolink
+  labels:
+    app: mqtt-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mqtt-service
+  template:
+    metadata:
+      labels:
+        app: mqtt-service
+    spec:
+      imagePullSecrets:
+        - name: gitlab-registry
+      containers:
+        - name: mqtt-service
+          image: registry.gitlab.com/gaslink/energolink/mqtt-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8087
+            - containerPort: 9000 # OTA TCP-сервер (KAN-32, §6/§7)
+          env:
+            - name: SERVICE_PORT
+              value: "8087"
+            - name: OTA_TCP_PORT
+              value: "9000"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: DB_USER
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: DB_NAME
+            - name: DB_SSLMODE
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: DB_SSLMODE
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: energolink-secrets
+                  key: DB_PASSWORD
+            - name: MQTT_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: MQTT_BROKER
+            - name: MQTT_TOPIC
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: MQTT_TOPIC
+            # MQTT_CLIENT_ID = "<configmap-value>-<pod-name>" — суффикс из pod-name
+            # делает ClientID уникальным per pod, чтобы rolling-restart не давал
+            # session-takeover (см. KNOWLEDGE.md → mqtt section + logs/2026-05-16--mqtt-retry-fix.md).
+            # configmap-prefix задаём ниже через MQTT_CLIENT_ID_PREFIX, code конкатенирует.
+            - name: MQTT_CLIENT_ID_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: MQTT_CLIENT_ID
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: MQTT_CLIENT_ID
+              value: "$(MQTT_CLIENT_ID_PREFIX)-$(POD_NAME)"
+            - name: MQTT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: energolink-secrets
+                  key: MQTT_USERNAME
+            - name: MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: energolink-secrets
+                  key: MQTT_PASSWORD
+            - name: MQTT_CONNECT_RETRY_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: MQTT_CONNECT_RETRY_INTERVAL
+            - name: MQTT_WATCHDOG_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: energolink-config
+                  key: MQTT_WATCHDOG_INTERVAL
+            # DynSec control plane (per-device MQTT credentials API)
+            - name: DYNSEC_ADMIN_USERNAME
+              value: "dynsec-admin"
+            - name: DYNSEC_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dynsec-secrets
+                  key: DYNSEC_ADMIN_PASSWORD
+            - name: INTERNAL_SERVICE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dynsec-secrets
+                  key: INTERNAL_SERVICE_TOKEN
+            # Alert dispatch (P3b): рассылка алертов через notification-service /internal/*
+            - name: NOTIFICATION_SERVICE_URL
+              value: "http://notification-service:8085"
+            - name: TELEGRAM_INTERNAL_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: energolink-secrets
+                  key: TELEGRAM_INTERNAL_TOKEN
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8087
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8087
+            initialDelaySeconds: 10
+            periodSeconds: 30

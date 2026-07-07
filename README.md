@@ -81,6 +81,17 @@ Frontend `http://localhost:3000` da ishlaydi.
 - `GET /api/analytics/group-comparison` — Guruh taqqoslash
 - `GET /api/analytics/recommendation/:athlete_id` — AI tavsiya
 
+### Qurilmalar va OTA (IoT trenajorlar)
+- `GET/POST /api/devices` — qurilmalar; POST MQTT akkaunt provizion qiladi (credential bir marta)
+- `POST /api/devices/:id/assign` — qurilmani trenajorga biriktirish/uzish
+- `DELETE /api/devices/:id` — qurilma + MQTT akkauntni o'chirish
+- `POST /api/devices/:id/ota` — qurilmaga OTA yangilanishni boshlash (`{firmware_id}`)
+- `GET/POST /api/firmwares` — proshivka repozitoriysi; POST `.bin` (base64) yuklaydi, server CRC-32 + A/B sverka hisoblaydi
+- `GET /api/firmwares/:id/download` — proshivka `.bin` faylini yuklab olish
+- `PATCH/DELETE /api/firmwares/:id` — status/kanal tahriri / o'chirish
+
+> Qurilma-server kanali (MQTT telemetriya + OTA) alohida Go mikroservisi orqali: `mqtt-service/README.md`.
+
 ## UDS Formulalar
 
 | Ko'rsatkich | Formula | Tavsif |

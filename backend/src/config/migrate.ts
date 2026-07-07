@@ -10,7 +10,7 @@ async function runMigrations() {
   try {
     console.log('Running migrations...');
 
-    const migrationFiles = ['001_init.sql', '002_multilang.sql', '003_machines.sql', '004_teams.sql', '005_dedupe_machines.sql', '006_devices.sql', '007_ota.sql', '008_device_machine_link.sql'];
+    const migrationFiles = ['001_init.sql', '002_multilang.sql', '003_machines.sql', '004_teams.sql', '005_dedupe_machines.sql', '006_devices.sql', '007_ota.sql', '008_device_machine_link.sql', '009_firmwares_meta.sql'];
     for (const file of migrationFiles) {
       const filePath = path.join(__dirname, '../../migrations', file);
       if (!fs.existsSync(filePath)) continue;

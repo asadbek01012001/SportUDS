@@ -99,11 +99,31 @@ o'tkazib yuboriladi.
 3. mqtt-service'ga `DYNSEC_ADMIN_PASSWORD` (yuqoridagi parol) bering, subscriber uchun MQTT akkaunt
    yarating (telemetriya + OTA/info topiclariga subscribe ACL bilan).
 
+## Firmware repozitoriysi (ulangan)
+
+`.bin` yuklash/boshqarish REST endpointi Node backendda **amalga oshirildi**
+(`backend/src/controllers/firmwares.controller.ts`, `energolink-ota-arch/.../handler/firmwares.go` va
+`repository/firmware_verify.go` asosida). Server `.bin` ni qabul qilib o'zi o'lcham + CRC-32/ISO-HDLC
+(qurilma protokoli bilan bir xil) ni hisoblaydi, slot capini (64KB) tekshiradi va A/B juftlik
+strukturaviy sverkasini (§7.2) bajaradi. Yuklash transporti multipart o'rniga base64 JSON (proshivka
+≤64KB — qo'shimcha dependency shart emas). Metadata maydonlari `009_firmwares_meta.sql` da qo'shilgan.
+
+`/api/firmwares` (admin/super_admin):
+
+- `GET    /api/firmwares` — proshivkalar ro'yxati (binarlarsiz)
+- `POST   /api/firmwares` `{ver_major, ver_minor, ver_patch?, target, channel?, status?, release_notes?, file_a, file_b?}` — yuklash (base64)
+- `GET    /api/firmwares/:id` — bitta proshivka metadatasi
+- `GET    /api/firmwares/:id/download` — image_A `.bin` yuklab olish
+- `PATCH  /api/firmwares/:id` — status/channel/release_notes tahriri
+- `DELETE /api/firmwares/:id` — o'chirish (aktiv OTA sessiyasida bo'lsa 409)
+
+Web-trener admin panelida «Proshivkalar» bo'limi orqali boshqariladi; «Qurilmalar» → OTA modalida
+proshivka ro'yxatdan tanlanadi.
+
 ## Hali ulanmagan (keyingi qadam)
 
-- **Firmware yuklash** — `firmwares` jadvaliga `.bin` yuklash REST endpointi hali Node backendda yo'q.
-  OTA boshlashdan oldin proshivka `firmwares`da bo'lishi kerak. Faithful namunasi:
-  `energolink-ota-arch/Backend/vehicle-service/internal/handler/firmwares.go` (CRC-32/ISO-HDLC hisob,
-  A/B juftlik validatsiyasi). Node'ga port qilish yoki to'g'ridan-to'g'ri INSERT.
-- Qurilma tomoni proshivkasi (ESP) reference'da yo'q — protokol server tomoni bayt-bayt shu yerda.
+- **Ommaviy rollout (kampaniya)** — energolink `ota_rollouts` (park bo'ylab bosqichma-bosqich
+  yoyish) SportUDS'ning soddaroq modeliga hali port qilinmagan; hozircha OTA qurilmaga bittalab
+  tayinlanadi.
+- **Qurilma tomoni proshivkasi (ESP)** reference'da yo'q — protokol server tomoni bayt-bayt shu yerda.
 ```

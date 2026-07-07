@@ -6,7 +6,7 @@ import {
   TrophyOutlined, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined,
   BellOutlined, GlobalOutlined, SunOutlined, MoonOutlined, QuestionCircleOutlined,
   EnvironmentOutlined, HistoryOutlined, IdcardOutlined, UsergroupAddOutlined,
-  ApiOutlined,
+  ApiOutlined, CloudServerOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +52,7 @@ export default function MainLayout() {
       { key: '/admin/users', icon: <UserOutlined />, label: t('nav.users') },
       { key: '/admin/sports', icon: <TrophyOutlined />, label: t('nav.sports') },
       { key: '/admin/devices', icon: <ApiOutlined />, label: L('Qurilmalar', 'Устройства', 'Devices') },
+      { key: '/admin/firmwares', icon: <CloudServerOutlined />, label: L('Proshivkalar', 'Прошивки', 'Firmwares') },
       { key: '/admin/protocols', icon: <SettingOutlined />, label: t('nav.protocols') },
       // Audit jurnali — faqat Super Admin
       ...(isSuperAdmin(user?.role) ? [{ key: '/admin/audit', icon: <FileTextOutlined />, label: t('nav.audit') }] : []),
@@ -68,7 +69,7 @@ export default function MainLayout() {
     }
     if (p === '/') return '/';
     const keys = [
-      '/admin/users', '/admin/sports', '/admin/devices', '/admin/protocols', '/admin/audit',
+      '/admin/users', '/admin/sports', '/admin/devices', '/admin/firmwares', '/admin/protocols', '/admin/audit',
       '/teams', '/athletes', '/sessions', '/analytics', '/trinajorlar', '/reports', '/admin',
     ];
     return keys.find(k => p === k || p.startsWith(k + '/')) || '/';
